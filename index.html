@@ -1,10 +1,10 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Calculadora de Retroativo Salarial — Servidores Municipais</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
 
@@ -204,6 +204,23 @@ main {
   padding: 28px 24px 64px;
 }
 
+/* ── FORM LAYOUT COM SIDEBAR ── */
+.form-sidebar-layout {
+  display: grid;
+  grid-template-columns: 1fr 250px;
+  gap: 24px;
+  align-items: start;
+  margin-bottom: 0;
+}
+@media (max-width: 900px) {
+  .form-sidebar-layout {
+    grid-template-columns: 1fr;
+  }
+  .pix-card {
+    order: -1;
+  }
+}
+
 /* ── FORM ── */
 .form-card {
   background: var(--surface);
@@ -287,6 +304,99 @@ input.mono { font-family: 'IBM Plex Mono', monospace; }
   display: none; margin-top: 14px;
 }
 [data-theme="dark"] .warn-msg, [data-theme="ultra-dark"] .warn-msg { color: var(--gold-light); }
+
+/* ── PIX CARD ── */
+.pix-card {
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  position: sticky;
+  top: 20px;
+  margin-bottom: 28px;
+}
+.pix-card-header {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+  color: white;
+  padding: 13px 18px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 0.01em;
+}
+.pix-card-body {
+  padding: 18px 16px 16px;
+  text-align: center;
+}
+.pix-msg {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  line-height: 1.55;
+}
+.pix-qr-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border-radius: 10px;
+  border: 2px solid var(--border);
+  padding: 10px;
+  margin: 0 auto 14px;
+  width: fit-content;
+}
+.pix-qr-wrapper img,
+.pix-qr-wrapper canvas {
+  display: block;
+  border-radius: 4px;
+}
+.pix-key-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+.pix-key-box {
+  background: var(--surface2);
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  padding: 8px 11px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--navy-light);
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.pix-key-box:hover { border-color: var(--navy-light); }
+.btn-copy-pix {
+  width: 100%;
+  justify-content: center;
+  margin-bottom: 12px;
+  font-size: 0.78rem;
+  padding: 8px 14px;
+}
+.pix-divider {
+  border: none;
+  border-top: 1px dashed var(--border);
+  margin: 10px 0;
+}
+.pix-thanks {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.pix-thanks span {
+  display: block;
+  font-size: 1.1rem;
+  margin-top: 3px;
+}
 
 /* ── RESULTS ── */
 #results { display: none; }
@@ -467,7 +577,7 @@ tfoot td:first-child { text-align: left; font-family: 'Inter', sans-serif; }
 /* ── PRINT ── */
 @media print {
   .site-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .action-bar, .btn-row, .theme-switcher { display: none !important; }
+  .action-bar, .btn-row, .theme-switcher, .pix-card { display: none !important; }
   #form-section { display: none !important; }
   #results { display: block !important; }
   .table-section, .extras-card, .grand-total-card { break-inside: avoid; }
@@ -499,95 +609,133 @@ tfoot td:first-child { text-align: left; font-family: 'Inter', sans-serif; }
     <p>Os valores apresentados possuem <strong>caráter meramente estimativo</strong> e servem apenas para fornecer uma ideia aproximada do montante que poderá ser recebido.</p>
     <p>Não foi computado valores de descontos que possam ocorrer em razão de ações judiciais, como imposto de renda, contribuição do servidor e outros valores de descontos que haverão no passado.</p>
     <p>Outro aviso importante, em maio de 2023 não recebemos o salário base corretamente por tanto é necessário somar o valor recebido em maio/2023, com a diferença paga no mes de agosto/2023, ou colocar o valor pago em junho/2023</p>
-</div>
+  </div>
 </div>
 
 <main>
 
-  <!-- ── FORM ── -->
+  <!-- ── FORM + PIX SIDEBAR ── -->
   <section id="form-section">
-    <div class="form-card">
-      <h2><span class="step-num">1</span> Dados do Servidor</h2>
-      <p class="form-subtitle">Preencha as informações abaixo para calcular o retroativo da gratificação.</p>
+    <div class="form-sidebar-layout">
 
-      <div class="form-grid">
-        <div class="form-group">
-          <label>Salário base em maio/2023
-            <span class="label-hint">Valor bruto sem gratificações</span>
-          </label>
-          <input type="text" id="salario-base" class="mono" placeholder="Ex.: 1.800,00" value="1.800,00">
-        </div>
+      <!-- FORM CARD -->
+      <div>
+        <div class="form-card">
+          <h2><span class="step-num">1</span> Dados do Servidor</h2>
+          <p class="form-subtitle">Preencha as informações abaixo para calcular o retroativo da gratificação.</p>
 
-        <div class="form-group">
-          <label>Gratificação recebida em maio/2023
-            <span class="label-hint">Valor padrão: R$ 582,46</span>
-          </label>
-          <input type="text" id="gratificacao-inicial" class="mono" placeholder="582,46" value="582,46">
-        </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Salário base em maio/2023
+                <span class="label-hint">Valor bruto sem gratificações</span>
+              </label>
+              <input type="text" id="salario-base" class="mono" placeholder="Ex.: 1.800,00" value="1.800,00">
+            </div>
 
-        <div class="form-group">
-          <label>Data de admissão
-            <span class="label-hint">Para cálculo dos biênios</span>
-          </label>
-          <input type="date" id="data-admissao" value="2022-11-23">
-        </div>
+            <div class="form-group">
+              <label>Gratificação recebida em maio/2023
+                <span class="label-hint">Valor padrão: R$ 582,46</span>
+              </label>
+              <input type="text" id="gratificacao-inicial" class="mono" placeholder="582,46" value="582,46">
+            </div>
 
-        <div class="form-group">
-          <label>Nível em maio/2023
-            <span class="label-hint">Posição na tabela salarial (A1 = R$ 1.800,00)</span>
-          </label>
-          <select id="nivel-inicial">
-            <option value="1">A1</option>
-            <option value="2">A2</option>
-            <option value="3">A3</option>
-            <option value="4">A4</option>
-            <option value="5">A5</option>
-            <option value="6">A6</option>
-            <option value="7">A7</option>
-            <option value="8">A8</option>
-            <option value="9">A9</option>
-            <option value="10">A10</option>
-            <option value="11">A11</option>
-            <option value="12">A12</option>
-          </select>
-        </div>
+            <div class="form-group">
+              <label>Data de admissão
+                <span class="label-hint">Para cálculo dos biênios</span>
+              </label>
+              <input type="date" id="data-admissao" value="2022-11-23">
+            </div>
 
-        <div class="form-group">
-          <label>Possui biênios congelados?
-            <span class="label-hint">Servidor admitido antes de 2022</span>
-          </label>
-          <select id="bienios-congelados">
-            <option value="nao">Não</option>
-            <option value="sim">Sim (tempo congelado 28/05/2020 – 31/12/2021)</option>
-          </select>
-        </div>
+            <div class="form-group">
+              <label>Nível em maio/2023
+                <span class="label-hint">Posição na tabela salarial (A1 = R$ 1.800,00)</span>
+              </label>
+              <select id="nivel-inicial">
+                <option value="1">A1</option>
+                <option value="2">A2</option>
+                <option value="3">A3</option>
+                <option value="4">A4</option>
+                <option value="5">A5</option>
+                <option value="6">A6</option>
+                <option value="7">A7</option>
+                <option value="8">A8</option>
+                <option value="9">A9</option>
+                <option value="10">A10</option>
+                <option value="11">A11</option>
+                <option value="12">A12</option>
+              </select>
+            </div>
 
-        <div class="form-group">
-          <label>Progressão horizontal (A → B)
-            <span class="label-hint">Somente para quem tem ≥ 3 anos na prefeitura</span>
-          </label>
-          <select id="progressao-horizontal">
-            <option value="nenhuma">Não recebeu</option>
-            <option value="2025-05">Maio/2025</option>
-            <option value="2025-10">Outubro/2025</option>
-            <option value="2026-05">Maio/2026 (fora do período)</option>
-          </select>
+            <div class="form-group">
+              <label>Possui biênios congelados?
+                <span class="label-hint">Servidor admitido antes de 2022</span>
+              </label>
+              <select id="bienios-congelados">
+                <option value="nao">Não</option>
+                <option value="sim">Sim (tempo congelado 28/05/2020 – 31/12/2021)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Progressão horizontal (A → B)
+                <span class="label-hint">Somente para quem tem ≥ 3 anos na prefeitura</span>
+              </label>
+              <select id="progressao-horizontal">
+                <option value="nenhuma">Não recebeu</option>
+                <option value="2025-05">Maio/2025</option>
+                <option value="2025-10">Outubro/2025</option>
+                <option value="2026-05">Maio/2026 (fora do período)</option>
+              </select>
+            </div>
+          </div>
+
+          <hr class="form-divider">
+
+          <div class="btn-row">
+            <button class="btn btn-primary" id="btn-calcular" onclick="calcular()">
+              🧮 Calcular Retroativo
+            </button>
+            <button class="btn btn-secondary" onclick="limpar()">
+              ↺ Limpar
+            </button>
+          </div>
+          <div class="error-msg" id="error-msg"></div>
+          <div class="warn-msg" id="warn-msg"></div>
         </div>
       </div>
 
-      <hr class="form-divider">
+      <!-- PIX CARD SIDEBAR -->
+      <aside class="pix-card">
+        <div class="pix-card-header">
+          💛 Contribua com qualquer valor
+        </div>
+        <div class="pix-card-body">
+          <p class="pix-msg">
+            Esta ferramenta é gratuita. Se foi útil, agradeço qualquer contribuição — do valor que quiser!
+          </p>
 
-      <div class="btn-row">
-        <button class="btn btn-primary" id="btn-calcular" onclick="calcular()">
-          🧮 Calcular Retroativo
-        </button>
-        <button class="btn btn-secondary" onclick="limpar()">
-          ↺ Limpar
-        </button>
-      </div>
-      <div class="error-msg" id="error-msg"></div>
-      <div class="warn-msg" id="warn-msg"></div>
-    </div>
+          <div class="pix-qr-wrapper">
+            <div id="pix-qr-code"></div>
+          </div>
+
+          <p class="pix-key-label">Chave PIX · Telefone</p>
+          <div class="pix-key-box" title="Clique para copiar" onclick="copiarPix()">
+            (42) 9 9928-6593
+          </div>
+
+          <button class="btn btn-secondary btn-sm btn-copy-pix" onclick="copiarPix()">
+            📋 Copiar chave PIX
+          </button>
+
+          <hr class="pix-divider">
+          <p class="pix-thanks">
+            Obrigado pela confiança e pelo uso! 🙏
+            <span>☕ Valeu demais!</span>
+          </p>
+        </div>
+      </aside>
+
+    </div><!-- /form-sidebar-layout -->
   </section>
 
   <!-- ── RESULTS ── -->
@@ -649,7 +797,6 @@ tfoot td:first-child { text-align: left; font-family: 'Inter', sans-serif; }
 
     <!-- EXTRAS: FÉRIAS + 13º -->
     <div class="extras-grid">
-      <!-- FÉRIAS -->
       <div class="extras-card">
         <div class="extras-card-header">🌴 Férias — Adicional 1/3 (Diferenças)</div>
         <table style="width:100%; border-collapse:collapse;">
@@ -671,7 +818,6 @@ tfoot td:first-child { text-align: left; font-family: 'Inter', sans-serif; }
         </table>
       </div>
 
-      <!-- 13º -->
       <div class="extras-card">
         <div class="extras-card-header">🎄 Décimo Terceiro Salário (Diferenças)</div>
         <table style="width:100%; border-collapse:collapse;">
@@ -728,6 +874,94 @@ function setTheme(t) {
 }
 
 // ═══════════════════════════════════════════════════════
+// PIX QR CODE
+// ═══════════════════════════════════════════════════════
+function crc16Pix(str) {
+  let crc = 0xFFFF;
+  for (let i = 0; i < str.length; i++) {
+    crc ^= str.charCodeAt(i) << 8;
+    for (let j = 0; j < 8; j++) {
+      crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
+      crc &= 0xFFFF;
+    }
+  }
+  return crc;
+}
+
+function buildPixPayload() {
+  const pixKey = '+5542999286593';
+  const nome   = 'Contribuicao';
+  const cidade = 'Ponta Grossa';
+
+  const emv = (id, val) => id + String(val.length).padStart(2, '0') + val;
+
+  const mai = emv('00', 'br.gov.bcb.pix') + emv('01', pixKey);
+
+  let payload =
+    emv('00', '01') +
+    emv('26', mai) +
+    emv('52', '0000') +
+    emv('53', '986') +
+    emv('58', 'BR') +
+    emv('59', nome) +
+    emv('60', cidade) +
+    '6304';
+
+  const crc = crc16Pix(payload).toString(16).toUpperCase().padStart(4, '0');
+  return payload + crc;
+}
+
+function initPixQR() {
+  const qrEl = document.getElementById('pix-qr-code');
+  if (!qrEl || typeof QRCode === 'undefined') return;
+  qrEl.innerHTML = '';
+  new QRCode(qrEl, {
+    text: buildPixPayload(),
+    width: 168,
+    height: 168,
+    colorDark: '#0f2241',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M
+  });
+}
+
+function copiarPix() {
+  const chave = '+5542999286593';
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(chave).then(feedbackCopy).catch(() => fallbackCopy(chave));
+  } else {
+    fallbackCopy(chave);
+  }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try { document.execCommand('copy'); feedbackCopy(); } catch(e) {}
+  document.body.removeChild(ta);
+}
+
+function feedbackCopy() {
+  const btn = document.querySelector('.btn-copy-pix');
+  if (!btn) return;
+  const orig = btn.innerHTML;
+  btn.innerHTML = '✅ Copiado!';
+  btn.style.color = 'var(--green)';
+  btn.style.borderColor = 'var(--green)';
+  setTimeout(() => {
+    btn.innerHTML = orig;
+    btn.style.color = '';
+    btn.style.borderColor = '';
+  }, 2200);
+}
+
+window.addEventListener('load', initPixQR);
+
+// ═══════════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════════
 function parseBRL(str) {
@@ -775,24 +1009,21 @@ function calcular() {
 
   const dataAdm = new Date(dataAdmStr + 'T00:00:00');
 
-  // ── Validação progressão horizontal: ≥ 3 anos na data da progressão ──
   let progHDate = null;
   let progHIgnorada = false;
   if (progressaoH !== 'nenhuma') {
     const [py, pm] = progressaoH.split('-').map(Number);
-    const dataProg = new Date(py, pm - 1, 1); // 1º do mês
+    const dataProg = new Date(py, pm - 1, 1);
     const anosServico = (dataProg - dataAdm) / (1000 * 60 * 60 * 24 * 365.25);
     if (anosServico < 3) {
       progHIgnorada = true;
       warnEl.innerHTML = `⚠️ A progressão horizontal de <strong>${MESES_PT[pm-1]}/${py}</strong> foi desconsiderada: o servidor não possuía os 3 anos mínimos de serviço na data da progressão (tinha ${anosServico.toFixed(1)} anos). O cálculo continuará sem progressão horizontal.`;
       warnEl.style.display = 'block';
     } else {
-      progHDate = { year: py, month: pm - 1 }; // 0-based month
+      progHDate = { year: py, month: pm - 1 };
     }
   }
 
-  // ── Reajustes da data-base ──
-  // Cada entrada: [year, month0based, percentual]
   const REAJUSTES = [
     [2024, 4,  0.035],
     [2025, 4,  0.025],
@@ -807,13 +1038,11 @@ function calcular() {
     return f;
   }
 
-  // ── Biênios: cada 2 anos após admissão, +3%, pago no mês seguinte ──
   function getNumBienios(year, month) {
     let count = 0;
     for (let b = 1; b <= 20; b++) {
       const aniv = new Date(dataAdm);
       aniv.setFullYear(dataAdm.getFullYear() + b * 2);
-      // Mês seguinte ao aniversário (pagamento começa no mês após completar)
       const pagAno  = aniv.getMonth() === 11 ? aniv.getFullYear() + 1 : aniv.getFullYear();
       const pagMes  = (aniv.getMonth() + 1) % 12;
       if (pagAno < year || (pagAno === year && pagMes <= month)) count++;
@@ -822,18 +1051,15 @@ function calcular() {
     return count;
   }
 
-  // ── Tabelas salariais ──
   const BASE_A1_2023 = 1800.00;
   const BASE_A1_2026 = 2392.27;
 
-  // Letra: A em mai/2023; muda para B quando ocorre progressão horizontal
   function getLetra(year, month) {
     if (!progHDate) return 'A';
     if (year > progHDate.year || (year === progHDate.year && month >= progHDate.month)) return 'B';
     return 'A';
   }
 
-  // ── Gera sequência de meses: mai/2023 a abr/2026 ──
   const meses = [];
   for (let y = 2023; y <= 2026; y++) {
     const mS = y === 2023 ? 4 : 0;
@@ -843,8 +1069,6 @@ function calcular() {
 
   let rows = [];
   let acumulado = 0, totalGratPaga = 0, totalGratCorreta = 0, totalDif = 0;
-
-  // Guardar valores de janeiro e dezembro para férias/13º
   const gratCorretaJan = {}, gratPagaJan = {};
   const gratCorretaDez = {}, gratPagaDez = {};
 
@@ -853,25 +1077,19 @@ function calcular() {
     const numBienios  = getNumBienios(year, month);
     const fatorBienio = Math.pow(1.03, numBienios);
 
-    // Progressão horizontal: +5%
     let fatorProgH = 1.0;
     if (progHDate && (year > progHDate.year || (year === progHDate.year && month >= progHDate.month))) {
       fatorProgH = 1.05;
     }
 
-    // Salário base do mês
     let salarioBase;
     const letra = getLetra(year, month);
 
     if (year < 2026) {
-      // Tabela 2023: A1 + progressão de nível (3% por nível) + reajustes + biênios + progr. H
       const salNivel = BASE_A1_2023 * Math.pow(1.03, nivelInicial - 1);
       salarioBase = salNivel * fatorReaj * fatorBienio * fatorProgH;
     } else {
-      // A partir de jan/2026: nova tabela (A1 = 2392,27), mesma posição de nível e letra
-      // Biênios e progressão H continuam se aplicando sobre a nova base
       const salNivel2026 = BASE_A1_2026 * Math.pow(1.03, nivelInicial - 1);
-      // Progressão H obtida antes de jan/2026 já está incorporada; verificar se ocorreu
       let fatorProgH2026 = 1.0;
       if (progHDate && (year > progHDate.year || (year === progHDate.year && month >= progHDate.month))) {
         fatorProgH2026 = 1.05;
@@ -880,12 +1098,8 @@ function calcular() {
       salarioBase = salNivel2026 * fatorBienio2026 * fatorProgH2026;
     }
 
-    // Gratificação efetivamente paga (só acompanha reajustes data-base)
     const gratPaga = gratInicial * fatorReaj;
-
-    // Gratificação correta = 40% do salário base atualizado
     const gratCorreta = salarioBase * 0.40;
-
     const diferenca = gratCorreta - gratPaga;
     acumulado += diferenca;
     totalGratPaga    += gratPaga;
@@ -897,21 +1111,14 @@ function calcular() {
 
     rows.push({
       label: labelMes(year, month),
-      year, month,
-      salarioBase,
-      nivel: nivelInicial,
-      letra,
+      year, month, salarioBase,
+      nivel: nivelInicial, letra,
       percBienio: (fatorBienio - 1) * 100,
       percProgH: (fatorProgH - 1) * 100,
-      gratPaga,
-      gratCorreta,
-      diferenca,
-      acumulado,
+      gratPaga, gratCorreta, diferenca, acumulado,
     });
   }
 
-  // ── Férias: 1/3 da diferença da gratificação de janeiro de cada ano ──
-  // (férias em jan/2024, jan/2025, jan/2026)
   const feriasData = [2024, 2025, 2026].map(y => {
     const gc  = gratCorretaJan[y] || 0;
     const gp  = gratPagaJan[y] || 0;
@@ -920,12 +1127,9 @@ function calcular() {
   });
   const totalFerias = feriasData.reduce((s, f) => s + f.dif, 0);
 
-  // ── 13º: diferença da gratificação de dezembro de cada ano ──
-  // Para 2023: dez/2023 está no período; 2024: dez/2024; 2025: dez/2025
   const decimoData = [2023, 2024, 2025].map(y => {
     let gc, gp;
     if (y === 2023) {
-      // dez/2023 está no período (o período começa em mai/2023)
       const r = rows.find(r => r.year === 2023 && r.month === 11);
       gc = r ? r.gratCorreta : 0;
       gp = r ? r.gratPaga : 0;
@@ -956,7 +1160,6 @@ function renderResults(data) {
   const { rows, feriasData, decimoData, totalFerias, totalDecimo, totalDif,
           totalGratPaga, totalGratCorreta, grandTotal } = data;
 
-  // ── Cards de resumo ──
   document.getElementById('summary-cards').innerHTML = [
     { label: 'Retroativo Mensal',  value: toBRL(totalDif),    sub: `${rows.length} meses analisados` },
     { label: 'Férias (1/3)',       value: toBRL(totalFerias), sub: 'Jan/2024 · 2025 · 2026' },
@@ -970,7 +1173,6 @@ function renderResults(data) {
     </div>
   `).join('');
 
-  // ── Tabela mensal ──
   document.getElementById('tabela-body').innerHTML = rows.map(r => `
     <tr class="${r.month === 0 ? 'month-jan' : ''}" data-label="${r.label.toLowerCase()}">
       <td>${r.label}</td>
@@ -991,7 +1193,6 @@ function renderResults(data) {
   document.getElementById('tfoot-diferenca').textContent    = toBRL(totalDif);
   document.getElementById('tfoot-acumulado').textContent    = toBRL(totalDif);
 
-  // ── Tabela de férias ──
   document.getElementById('tabela-ferias').innerHTML = feriasData.map(f => `
     <tr>
       <td class="extras-table-td">Janeiro/${f.ano}</td>
@@ -1003,7 +1204,6 @@ function renderResults(data) {
   document.getElementById('total-ferias').textContent = toBRL(totalFerias);
   document.getElementById('total-ferias').style.color = 'var(--gold-light)';
 
-  // ── Tabela de 13º ──
   document.getElementById('tabela-decimo').innerHTML = decimoData.map(d => `
     <tr>
       <td class="extras-table-td">13º de ${d.ano}</td>
@@ -1015,14 +1215,12 @@ function renderResults(data) {
   document.getElementById('total-decimo').textContent = toBRL(totalDecimo);
   document.getElementById('total-decimo').style.color = 'var(--gold-light)';
 
-  // ── Grand total ──
   document.getElementById('grand-total-value').textContent = toBRL(grandTotal);
   document.getElementById('grand-breakdown').textContent =
     `Mensais (${toBRL(totalDif)}) + Férias (${toBRL(totalFerias)}) + 13º (${toBRL(totalDecimo)})`;
   document.getElementById('results-subtitle').textContent =
     `Período: maio/2023 a abril/2026 · ${rows.length} meses calculados`;
 
-  // ── Mostrar resultados ──
   document.getElementById('form-section').style.display = 'none';
   document.getElementById('results').style.display = 'block';
 
@@ -1048,7 +1246,6 @@ function sortTable(col) {
   const asc = sortState.col === col ? !sortState.asc : true;
   sortState = { col, asc };
 
-  // Atualizar ícones
   document.querySelectorAll('thead th').forEach((th, i) => {
     th.classList.toggle('sorted', i === col);
     const icon = th.querySelector('.sort-icon');
@@ -1091,7 +1288,6 @@ function sortTable(col) {
     </tr>
   `).join('');
 
-  // Reaplicar filtro atual
   filtrarTabela();
 }
 
@@ -1130,7 +1326,6 @@ function renderChart(rows) {
   function xPos(i) { return pad.l + (i / (rows.length - 1)) * cW; }
   function yPos(v) { return pad.t + cH - ((v - minVal) / (maxVal - minVal || 1)) * cH; }
 
-  // Grid
   ctx.strokeStyle = gridColor;
   ctx.lineWidth = 1;
   for (let i = 0; i <= 4; i++) {
@@ -1146,7 +1341,6 @@ function renderChart(rows) {
     );
   }
 
-  // Barras (diferença mensal)
   const barW = Math.max(2, cW / rows.length - 1.5);
   diffs.forEach((d, i) => {
     const x = pad.l + (i / rows.length) * cW + (cW / rows.length - barW) / 2;
@@ -1155,7 +1349,6 @@ function renderChart(rows) {
     ctx.fillRect(x, pad.t + cH - bH, barW, bH);
   });
 
-  // Linha (acumulado)
   ctx.beginPath();
   ctx.strokeStyle = lineColor;
   ctx.lineWidth = 2;
@@ -1166,7 +1359,6 @@ function renderChart(rows) {
   });
   ctx.stroke();
 
-  // Labels eixo X
   ctx.fillStyle = labelColor;
   ctx.font = '10px Inter, sans-serif';
   ctx.textAlign = 'center';
@@ -1176,7 +1368,6 @@ function renderChart(rows) {
     }
   });
 
-  // Legenda
   ctx.fillStyle = barColor;
   ctx.fillRect(pad.l, H - pad.b + 20, 12, 10);
   ctx.fillStyle = labelColor;
@@ -1250,7 +1441,6 @@ function limpar() {
   document.getElementById('warn-msg').style.display = 'none';
 }
 
-// Formatação automática do input de salário
 ['salario-base', 'gratificacao-inicial'].forEach(id => {
   document.getElementById(id).addEventListener('blur', function () {
     const val = parseBRL(this.value);
