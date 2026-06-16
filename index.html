@@ -216,7 +216,7 @@ main {
     grid-template-columns: 1fr;
   }
   .pix-card {
-    order: -1;
+    position: static;
   }
 }
 
@@ -351,6 +351,8 @@ input.mono { font-family: 'IBM Plex Mono', monospace; }
 .pix-qr-wrapper canvas {
   display: block;
   border-radius: 4px;
+  max-width: 100%;
+  height: auto;
 }
 .pix-key-label {
   font-size: 0.68rem;
@@ -454,8 +456,8 @@ input.mono { font-family: 'IBM Plex Mono', monospace; }
   font-family: inherit; width: 160px;
 }
 .search-input:focus { outline: none; border-color: var(--navy-light); }
-.table-wrapper { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 640px; }
 thead th {
   background: var(--thead-bg);
   color: var(--thead-color);
@@ -565,12 +567,48 @@ tfoot td:first-child { text-align: left; font-family: 'Inter', sans-serif; }
 .action-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
 
 /* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  main { padding: 20px 14px 48px; }
+  .header-inner { padding: 20px 16px 18px; }
+  .summary-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .results-header { flex-direction: column; align-items: stretch; }
+  .action-bar { width: 100%; }
+  .action-bar .btn { flex: 1 1 auto; justify-content: center; }
+  .table-section-header { flex-direction: column; align-items: stretch; }
+  .table-controls { width: 100%; }
+  .search-input { width: 100%; }
+  .table-controls .tag { align-self: flex-start; }
+  table { font-size: 0.76rem; }
+  thead th, tbody td, tfoot td { padding: 8px 9px; }
+  .chart-section { padding: 14px; }
+  #chart-container { height: 220px; }
+}
+
 @media (max-width: 640px) {
+  .aviso-banner { padding: 12px 16px; }
+  .aviso-banner p { font-size: 0.76rem; }
   .header-inner { gap: 12px; }
+  .header-text h1 { font-size: 1.2rem; }
+  .header-text p { font-size: 0.76rem; }
+  .header-seal { width: 44px; height: 44px; font-size: 19px; }
   .form-card { padding: 18px; }
-  .grand-total-card { padding: 20px 22px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .btn-row { flex-direction: column; }
+  .btn-row .btn { width: 100%; justify-content: center; }
+  .grand-total-card { padding: 20px 22px; flex-direction: column; align-items: flex-start; }
+  .grand-total-card .right { text-align: left; width: 100%; }
   .grand-total-card .total-value { font-size: 1.8rem; }
   .theme-switcher { margin-left: 0; width: 100%; justify-content: center; }
+  .summary-grid { grid-template-columns: 1fr 1fr; }
+  .summary-card { padding: 14px; }
+  .summary-card .value { font-size: 1.05rem; }
+  .summary-card.highlight .value { font-size: 1.2rem; }
+}
+
+@media (max-width: 420px) {
+  .summary-grid { grid-template-columns: 1fr; }
+  .header-inner { flex-direction: column; align-items: flex-start; }
+  .header-seal { display: none; }
 }
 
 /* ── PRINT ── */
@@ -924,6 +962,13 @@ function feedbackCopy() {
 
 window.addEventListener('load', initPixQR);
 
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  if (!resultData) return;
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => renderChart(resultData.rows), 150);
+});
+
 // ═══════════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════════
@@ -1264,7 +1309,8 @@ function renderChart(rows) {
   const ctx = canvas.getContext('2d');
 
   const W = container.clientWidth || 800;
-  const H = 280;
+  const isMobile = W < 480;
+  const H = isMobile ? 220 : 280;
   canvas.width = W * (window.devicePixelRatio || 1);
   canvas.height = H * (window.devicePixelRatio || 1);
   canvas.style.width = W + 'px';
@@ -1274,7 +1320,9 @@ function renderChart(rows) {
   const diffs = rows.map(r => r.diferenca);
   const acums = rows.map(r => r.acumulado);
 
-  const pad = { t: 20, r: 20, b: 52, l: 90 };
+  const pad = isMobile
+    ? { t: 16, r: 10, b: 48, l: 56 }
+    : { t: 20, r: 20, b: 52, l: 90 };
   const cW = W - pad.l - pad.r;
   const cH = H - pad.t - pad.b;
   const maxVal = Math.max(...acums) * 1.05;
@@ -1296,12 +1344,12 @@ function renderChart(rows) {
     ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cW, y); ctx.stroke();
     const val = maxVal * (1 - i / 4);
     ctx.fillStyle = labelColor;
-    ctx.font = '10px IBM Plex Mono, monospace';
+    ctx.font = isMobile ? '9px IBM Plex Mono, monospace' : '10px IBM Plex Mono, monospace';
     ctx.textAlign = 'right';
-    ctx.fillText(
-      val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }),
-      pad.l - 6, y + 4
-    );
+    const labelTxt = isMobile
+      ? 'R$ ' + (val / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'k'
+      : val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+    ctx.fillText(labelTxt, pad.l - 6, y + 4);
   }
 
   const barW = Math.max(2, cW / rows.length - 1.5);
@@ -1323,29 +1371,33 @@ function renderChart(rows) {
   ctx.stroke();
 
   ctx.fillStyle = labelColor;
-  ctx.font = '10px Inter, sans-serif';
+  ctx.font = isMobile ? '9px Inter, sans-serif' : '10px Inter, sans-serif';
   ctx.textAlign = 'center';
+  const step = isMobile ? 10 : 6;
   rows.forEach((r, i) => {
-    if (i % 6 === 0 || i === rows.length - 1) {
+    if (i % step === 0 || i === rows.length - 1) {
       ctx.fillText(r.label, xPos(i), H - 12);
     }
   });
 
+  const legendFont = isMobile ? '9px Inter, sans-serif' : '10px Inter, sans-serif';
   ctx.fillStyle = barColor;
   ctx.fillRect(pad.l, H - pad.b + 20, 12, 10);
   ctx.fillStyle = labelColor;
-  ctx.font = '10px Inter, sans-serif';
+  ctx.font = legendFont;
   ctx.textAlign = 'left';
   ctx.fillText('Diferença mensal', pad.l + 16, H - pad.b + 30);
 
+  const legend2X = isMobile ? pad.l + 16 + 110 : pad.l + 150;
   ctx.strokeStyle = lineColor;
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(pad.l + 150, H - pad.b + 25);
-  ctx.lineTo(pad.l + 166, H - pad.b + 25);
+  ctx.moveTo(legend2X, H - pad.b + 25);
+  ctx.lineTo(legend2X + 16, H - pad.b + 25);
   ctx.stroke();
   ctx.fillStyle = labelColor;
-  ctx.fillText('Acumulado', pad.l + 170, H - pad.b + 30);
+  ctx.font = legendFont;
+  ctx.fillText('Acumulado', legend2X + 20, H - pad.b + 30);
 }
 
 // ═══════════════════════════════════════════════════════
