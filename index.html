@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cálculo Retroativo de Gratificação</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --ink:#1c2430;
+  --paper:#f6f4ee;
+  --paper-2:#ffffff;
+  --line:#d9d3c4;
+  --brass:#8a6d3b;
+  --brass-deep:#6b5128;
+  --teal:#2f5d56;
+  --teal-deep:#1f3f3a;
+  --red-ink:#8a3324;
+  --green-ink:#2f6b3a;
+  --shadow:0 2px 10px rgba(28,36,48,0.08);
+  --radius:4px;
+  --mono: 'Courier Prime', 'Courier New', monospace;
+  --serif: 'Spectral', Georgia, 'Times New Roman', serif;
+  --sans: 'Inter', -apple-system, Segoe UI, sans-serif;
+}
+
+@font-face{
+  font-family:'Spectral';
+  src:local('Georgia');
+}
+
+*{box-sizing:border-box; margin:0; padding:0;}
+
+body{
+  font-family: var(--sans);
+  background: var(--paper);
+  color: var(--ink);
+  line-height:1.5;
+  padding: 0 0 60px 0;
+  background-image:
+    linear-gradient(180deg, rgba(255,255,255,0.4), transparent 200px);
+}
+
+.ledger-header{
+  background: var(--teal-deep);
+  color: #f1ece0;
+  padding: 36px 24px 28px;
+  position:relative;
+  overflow:hidden;
+}
+.ledger-header::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background-image: repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,0.04) 40px);
+  pointer-events:none;
+}
+.ledger-header .stamp{
+  display:inline-block;
+  font-family: var(--mono);
+  font-size:11px;
+  letter-spacing:0.15em;
+  text-transform:uppercase;
+  border:1px solid rgba(241,236,224,0.5);
+  padding:4px 10px;
+  border-radius:2px;
+  color:#d8cfa9;
+  margin-bottom:14px;
+}
+.ledger-header h1{
+  font-family: var(--serif);
+  font-weight:600;
+  font-size:clamp(26px,4vw,38px);
+  letter-spacing:-0.01em;
+  max-width:760px;
+}
+.ledger-header p.sub{
+  margin-top:10px;
+  max-width:640px;
+  color:#c3d6cf;
+  font-size:14.5px;
+}
+.container{
+  max-width:1100px;
+  margin:0 auto;
+  padding: 0 24px;
+}
+
+/* FORM CARD */
+.card{
+  background: var(--paper-2);
+  border:1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-top:-26px;
+  position:relative;
+  z-index:2;
+  padding: 28px;
+}
+.card h2{
+  font-family: var(--serif);
+  font-size:19px;
+  font-weight:600;
+  margin-bottom:4px;
+  color: var(--teal-deep);
+}
+.card .hint{
+  font-size:13px;
+  color:#6b6356;
+  margin-bottom:20px;
+}
+
+.field-grid{
+  display:grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap:18px 24px;
+}
+@media (max-width:680px){
+  .field-grid{grid-template-columns:1fr;}
+}
+
+.field{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.field label{
+  font-size:12.5px;
+  font-weight:600;
+  text-transform:uppercase;
+  letter-spacing:0.04em;
+  color:#534b3d;
+}
+.field .desc{
+  font-size:12px;
+  color:#8a8273;
+  margin-top:-2px;
+}
+.field input, .field select{
+  font-family: var(--mono);
+  font-size:14.5px;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:3px;
+  background:#fffdf9;
+  color:var(--ink);
+  transition: border-color .15s;
+}
+.field input:focus, .field select:focus{
+  outline:none;
+  border-color: var(--teal);
+  box-shadow:0 0 0 3px rgba(47,93,86,0.12);
+}
+.field select{font-family:var(--sans); cursor:pointer;}
+
+.full{grid-column:1 / -1;}
+
+.radio-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:2px;
+}
+.radio-pill{
+  position:relative;
+}
+.radio-pill input{position:absolute; opacity:0; pointer-events:none;}
+.radio-pill label{
+  display:inline-block;
+  font-family: var(--sans);
+  font-size:13px;
+  font-weight:500;
+  text-transform:none;
+  letter-spacing:0;
+  padding:8px 14px;
+  border:1px solid var(--line);
+  border-radius:20px;
+  cursor:pointer;
+  color:#534b3d;
+  background:#fffdf9;
+  transition: all .15s;
+}
+.radio-pill input:checked + label{
+  background: var(--teal-deep);
+  border-color: var(--teal-deep);
+  color:#fff;
+}
+
+.actions-row{
+  margin-top:26px;
+  display:flex;
+  gap:12px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+button{
+  font-family: var(--sans);
+  font-weight:600;
+  font-size:14px;
+  padding:12px 22px;
+  border-radius:3px;
+  border:none;
+  cursor:pointer;
+  transition: transform .1s, box-shadow .15s;
+}
+button:active{transform:translateY(1px);}
+.btn-primary{
+  background: var(--teal-deep);
+  color:#fff;
+}
+.btn-primary:hover{background:#163530;}
+.btn-secondary{
+  background:transparent;
+  color: var(--teal-deep);
+  border:1px solid var(--teal-deep);
+}
+.btn-secondary:hover{background:rgba(31,63,58,0.06);}
+.error-msg{
+  color:var(--red-ink);
+  font-size:13px;
+  font-weight:600;
+  display:none;
+}
+
+/* RESULTS */
+#results{display:none;}
+
+.summary-strip{
+  display:grid;
+  grid-template-columns: repeat(4,1fr);
+  gap:14px;
+  margin-top:30px;
+}
+@media (max-width:780px){.summary-strip{grid-template-columns:repeat(2,1fr);}}
+.summary-card{
+  background: var(--paper-2);
+  border:1px solid var(--line);
+  border-left:4px solid var(--teal);
+  border-radius:3px;
+  padding:16px 18px;
+  box-shadow: var(--shadow);
+}
+.summary-card.highlight{
+  border-left-color: var(--brass);
+  background: linear-gradient(135deg, #fff, #fbf6ea);
+}
+.summary-card .label{
+  font-size:11.5px;
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+  color:#8a8273;
+  font-weight:600;
+}
+.summary-card .value{
+  font-family: var(--serif);
+  font-size:24px;
+  font-weight:600;
+  margin-top:6px;
+  color: var(--teal-deep);
+}
+.summary-card.highlight .value{color: var(--brass-deep);}
+
+.table-section{
+  margin-top:34px;
+}
+.table-section .head-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-bottom:14px;
+}
+.table-section h2{
+  font-family: var(--serif);
+  font-size:20px;
+  color: var(--teal-deep);
+}
+.export-buttons{display:flex; gap:10px;}
+.export-buttons button{
+  padding:9px 16px;
+  font-size:13px;
+}
+
+.table-wrap{
+  overflow-x:auto;
+  border:1px solid var(--line);
+  border-radius:3px;
+  background:var(--paper-2);
+  box-shadow: var(--shadow);
+}
+table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:13px;
+  min-width:980px;
+}
+thead th{
+  background: var(--teal-deep);
+  color:#f1ece0;
+  font-weight:600;
+  text-align:right;
+  padding:10px 12px;
+  position:sticky;
+  top:0;
+  white-space:nowrap;
+}
+thead th:first-child, thead th:nth-child(2){text-align:left;}
+tbody td{
+  padding:8px 12px;
+  text-align:right;
+  border-bottom:1px solid #ece7da;
+  font-family: var(--mono);
+  white-space:nowrap;
+  color:#3a352b;
+}
+tbody td:first-child, tbody td:nth-child(2){
+  text-align:left;
+  font-family: var(--sans);
+}
+tbody tr:nth-child(even){background:#fbf9f4;}
+tbody tr.marker-row td{
+  background: #f1ece0;
+  font-weight:700;
+  color: var(--brass-deep);
+}
+tbody td.diff-positive{color: var(--red-ink); font-weight:600;}
+tbody td.diff-zero{color:#8a8273;}
+tfoot td{
+  padding:12px;
+  font-weight:700;
+  background:#f1ece0;
+  border-top:2px solid var(--brass);
+  font-family:var(--mono);
+  text-align:right;
+}
+tfoot td:first-child{text-align:left; font-family:var(--sans);}
+
+.note-box{
+  margin-top:18px;
+  font-size:12.5px;
+  color:#8a8273;
+  background:#fbf9f4;
+  border:1px solid var(--line);
+  border-radius:3px;
+  padding:12px 16px;
+}
+.note-box strong{color:#534b3d;}
+
+@media print{
+  .ledger-header, .card, .actions-row, .export-buttons{display:none !important;}
+  body{background:#fff; padding:0;}
+  .table-wrap{box-shadow:none; border:1px solid #999;}
+  thead th{background:#222 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact;}
+  .summary-strip{margin-top:0;}
+}
+</style>
+</head>
+<body>
+
+<header class="ledger-header">
+  <div class="container">
+    <span class="stamp">Apuração retroativa &middot; maio/2023 — abril/2026</span>
+    <h1>Cálculo Retroativo de Gratificação</h1>
+    <p class="sub">Reconstitui mês a mês a evolução salarial do servidor — reajustes de data-base, biênios e elevação horizontal — e apura a diferença entre a gratificação efetivamente paga e os 40% devidos sobre o salário base.</p>
+  </div>
+</header>
+
+<div class="container">
+  <section class="card">
+    <h2>Dados do servidor</h2>
+    <p class="hint">Preencha as informações abaixo conforme a ficha funcional. Todos os cálculos são feitos localmente, no seu navegador.</p>
+
+    <div class="field-grid">
+      <div class="field">
+        <label for="salarioBase">Salário base em maio/2023</label>
+        <input type="text" id="salarioBase" placeholder="Ex: 1800,00" inputmode="decimal">
+        <span class="desc">Valor do salário base antes de qualquer reajuste posterior.</span>
+      </div>
+
+      <div class="field">
+        <label for="dataAdmissao">Data de admissão</label>
+        <input type="date" id="dataAdmissao">
+        <span class="desc">Usada para calcular os biênios por tempo de serviço.</span>
+      </div>
+
+      <div class="field">
+        <label>O biênio ficou congelado entre 28/05/2020 e 31/12/2021?</label>
+        <div class="radio-row">
+          <div class="radio-pill">
+            <input type="radio" name="congelado" id="congSim" value="sim" checked>
+            <label for="congSim">Sim</label>
+          </div>
+          <div class="radio-pill">
+            <input type="radio" name="congelado" id="congNao" value="nao">
+            <label for="congNao">Não</label>
+          </div>
+        </div>
+        <span class="desc">Servidores antigos tiveram o tempo de serviço congelado nesse período.</span>
+      </div>
+
+      <div class="field">
+        <label for="nivelMaio2023">Nível em maio/2023</label>
+        <select id="nivelMaio2023"></select>
+        <span class="desc">Cada nível acima de A1 representa +3% acumulado (efeito dos biênios já incorporados).</span>
+      </div>
+
+      <div class="field">
+        <label for="elevacao">Recebeu elevação horizontal (merecimento)?</label>
+        <select id="elevacao">
+          <option value="nao">Não</option>
+          <option value="2025-05">Maio/2025</option>
+          <option value="2025-10">Outubro/2025</option>
+          <option value="2026-05">Maio/2026</option>
+        </select>
+        <span class="desc">Cada mudança de letra (A→B→C→D) soma +5%. Exige ao menos 3 anos de prefeitura na data da concessão.</span>
+      </div>
+
+      <div class="field">
+        <label for="gratificacaoMaio2023">Gratificação em maio/2023</label>
+        <input type="text" id="gratificacaoMaio2023" value="582,46" inputmode="decimal">
+        <span class="desc">Valor fixo de referência, corrigido apenas pelos reajustes de data-base.</span>
+      </div>
+    </div>
+
+    <div class="actions-row">
+      <button class="btn-primary" id="btnCalcular">Calcular retroativo</button>
+      <button class="btn-secondary" id="btnLimpar">Limpar</button>
+      <span class="error-msg" id="errorMsg"></span>
+    </div>
+  </section>
+
+  <section id="results">
+    <div class="summary-strip">
+      <div class="summary-card">
+        <div class="label">Salário base final (abr/2026)</div>
+        <div class="value" id="sumSalarioFinal">—</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">Gratificação paga (abr/2026)</div>
+        <div class="value" id="sumGratPaga">—</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">Gratificação correta (abr/2026)</div>
+        <div class="value" id="sumGratCorreta">—</div>
+      </div>
+      <div class="summary-card highlight">
+        <div class="label">Total retroativo (36 meses)</div>
+        <div class="value" id="sumTotal">—</div>
+      </div>
+    </div>
+
+    <div class="table-section">
+      <div class="head-row">
+        <h2>Demonstrativo mês a mês</h2>
+        <div class="export-buttons">
+          <button class="btn-secondary" id="btnExcel">Exportar Excel</button>
+          <button class="btn-secondary" id="btnPdf">Imprimir / PDF</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="tabelaResultado">
+          <thead>
+            <tr>
+              <th>Mês/Ano</th>
+              <th>Evento</th>
+              <th>Salário base</th>
+              <th>Biênio acum.</th>
+              <th>Elevação acum.</th>
+              <th>Gratificação paga</th>
+              <th>Gratificação correta (40%)</th>
+              <th>Diferença</th>
+              <th>Acumulado</th>
+            </tr>
+          </thead>
+          <tbody id="corpoTabela"></tbody>
+          <tfoot>
+            <tr>
+              <td colspan="8">Total do retroativo</td>
+              <td id="totalFoot">—</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div class="note-box">
+        <strong>Metodologia:</strong> reajustes de data-base (mai/2024 +3,5%, mai/2025 +2,5%, out/2025 +2,5%) incidem sobre o salário base e são cumulativos. Biênios (+3% a cada 2 anos completos, a partir do mês seguinte ao aniversário) e elevação horizontal (+5% por letra, exige 3 anos de prefeitura) incidem sobre o salário já corrigido. A gratificação efetivamente paga acompanha apenas os reajustes de data-base, partindo de R$ 582,46 em maio/2023. A gratificação correta corresponde sempre a 40% do salário base atualizado do mês.
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+
+  // ---------- Helpers ----------
+  function parseMoeda(str){
+    if(!str) return NaN;
+    str = String(str).trim().replace(/[R$\s]/g,'');
+    // suporta tanto "1.800,00" quanto "1800.00" quanto "1800,00"
+    if(str.indexOf(',') > -1){
+      str = str.replace(/\./g,'').replace(',', '.');
+    }
+    return parseFloat(str);
+  }
+
+  function fmtMoeda(v){
+    return v.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+  }
+
+  function fmtPct(v){
+    return (v*100).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '%';
+  }
+
+  const MESES_PT = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+
+  function nomeMes(ano, mes){ // mes 0-indexed
+    return MESES_PT[mes] + '/' + ano;
+  }
+
+  // gera lista de meses entre maio/2023 (ano=2023,mes=4) e abril/2026 (ano=2026,mes=3) inclusive
+  function gerarPeriodo(){
+    const periodo = [];
+    let ano = 2023, mes = 4; // maio = index 4
+    while(ano < 2026 || (ano === 2026 && mes <= 3)){
+      periodo.push({ano, mes});
+      mes++;
+      if(mes > 11){ mes = 0; ano++; }
+    }
+    return periodo;
+  }
+
+  // popula select de níveis A1..A20
+  function popularNiveis(){
+    const sel = document.getElementById('nivelMaio2023');
+    sel.innerHTML = '';
+    for(let i=1;i<=20;i++){
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = 'A' + i;
+      sel.appendChild(opt);
+    }
+  }
+  popularNiveis();
+
+  // ---------- Regras de negócio ----------
+
+  // Reajustes de data-base: ocorrem em maio/2024, maio/2025, outubro/2025
+  // Retorna fator multiplicativo acumulado de data-base válido para um dado (ano, mes)
+  function fatorDataBase(ano, mes){
+    let fator = 1;
+    // maio/2024 (ano=2024, mes=4)
+    if(ano > 2024 || (ano === 2024 && mes >= 4)) fator *= 1.035;
+    // maio/2025 (ano=2025, mes=4)
+    if(ano > 2025 || (ano === 2025 && mes >= 4)) fator *= 1.025;
+    // outubro/2025 (ano=2025, mes=9)
+    if(ano > 2025 || (ano === 2025 && mes >= 9)) fator *= 1.025;
+    return fator;
+  }
+
+  // Calcula quantos biênios adicionais (após maio/2023) já foram completados e estão em pagamento
+  // até o mês (ano, mes), considerando data de admissão, congelamento e nível inicial.
+  // Retorna { percentual, eventos: [{ano,mes,label}] }
+  function calcularBienios(dataAdmissao, congelado, anoRef, mesRef){
+    const eventos = [];
+    if(!dataAdmissao) return {percentualPorMes: () => 0, eventos: []};
+
+    const admissao = new Date(dataAdmissao + 'T00:00:00');
+    const admAno = admissao.getFullYear();
+    const admMes = admissao.getMonth();
+    const admDia = admissao.getDate();
+
+    // congelamento: 28/05/2020 até 31/12/2021 -> esse intervalo não conta como tempo de serviço
+    const congInicio = new Date(2020,4,28);
+    const congFim = new Date(2021,11,31);
+    const diasCongelados = congelado ? Math.round((congFim - congInicio)/(1000*60*60*24)) + 1 : 0;
+
+    // gera datas de aniversário de biênio (a cada 2 anos a partir da admissão),
+    // deslocando pelo tempo congelado (aproximação em dias corridos)
+    const aniversarios = [];
+    let n = 1;
+    while(true){
+      let dataAniv = new Date(admAno + n*2, admMes, admDia);
+      if(congelado){
+        dataAniv = new Date(dataAniv.getTime() + diasCongelados*24*60*60*1000);
+      }
+      // limite de segurança: parar bem depois do fim do período de cálculo
+      if(dataAniv.getFullYear() > 2027) break;
+      aniversarios.push(dataAniv);
+      n++;
+      if(n > 30) break;
+    }
+
+    // cada aniversário de biênio gera +3%, começando no mês subsequente ao aniversário
+    aniversarios.forEach(dataAniv => {
+      let inicioPagAno = dataAniv.getFullYear();
+      let inicioPagMes = dataAniv.getMonth() + 1;
+      if(inicioPagMes > 11){ inicioPagMes = 0; inicioPagAno++; }
+      eventos.push({ano: inicioPagAno, mes: inicioPagMes, label: (eventos.length+1) + 'º biênio (+3%)'});
+    });
+
+    function percentualAcumulado(ano, mes){
+      let fator = 1;
+      eventos.forEach(ev => {
+        if(ano > ev.ano || (ano === ev.ano && mes >= ev.mes)){
+          fator *= 1.03;
+        }
+      });
+      return fator;
+    }
+
+    return {percentualAcumulado, eventos};
+  }
+
+  // Calcula fator de elevação horizontal acumulado a partir da opção escolhida.
+  // A elevação concede +5% (uma letra) a partir do mês escolhido (mai/2025, out/2025 ou mai/2026).
+  function calcularElevacao(opcao){
+    if(opcao === 'nao' || !opcao) return {fator: () => 1, evento: null};
+    const map = {
+      '2025-05': {ano:2025, mes:4, label:'Elevação horizontal (+5%)'},
+      '2025-10': {ano:2025, mes:9, label:'Elevação horizontal (+5%)'},
+      '2026-05': {ano:2026, mes:4, label:'Elevação horizontal (+5%)'}
+    };
+    const ev = map[opcao];
+    function fator(ano, mes){
+      if(ano > ev.ano || (ano === ev.ano && mes >= ev.mes)) return 1.05;
+      return 1;
+    }
+    return {fator, evento: ev};
+  }
+
+  // Fator do nível inicial em maio/2023 (cada nível acima de A1 = +3%)
+  function fatorNivelInicial(nivel){
+    return Math.pow(1.03, nivel - 1);
+  }
+
+  // ---------- Cálculo principal ----------
+  function calcular(){
+    const errorEl = document.getElementById('errorMsg');
+    errorEl.style.display = 'none';
+    errorEl.textContent = '';
+
+    const salarioBaseStr = document.getElementById('salarioBase').value;
+    const dataAdmissao = document.getElementById('dataAdmissao').value;
+    const congelado = document.querySelector('input[name="congelado"]:checked').value === 'sim';
+    const nivel = parseInt(document.getElementById('nivelMaio2023').value, 10);
+    const elevacaoOpcao = document.getElementById('elevacao').value;
+    const gratMaio2023Str = document.getElementById('gratificacaoMaio2023').value;
+
+    const salarioBase0 = parseMoeda(salarioBaseStr);
+    const gratBase0 = parseMoeda(gratMaio2023Str);
+
+    if(isNaN(salarioBase0) || salarioBase0 <= 0){
+      errorEl.textContent = 'Informe um salário base válido em maio de 2023.';
+      errorEl.style.display = 'inline';
+      return;
+    }
+    if(!dataAdmissao){
+      errorEl.textContent = 'Informe a data de admissão.';
+      errorEl.style.display = 'inline';
+      return;
+    }
+    if(isNaN(gratBase0) || gratBase0 <= 0){
+      errorEl.textContent = 'Informe um valor válido para a gratificação de maio de 2023.';
+      errorEl.style.display = 'inline';
+      return;
+    }
+
+    const fatorNivel0 = fatorNivelInicial(nivel);
+    const bienioCalc = calcularBienios(dataAdmissao, congelado, 2026, 3);
+    const elevCalc = calcularElevacao(elevacaoOpcao);
+
+    const periodo = gerarPeriodo();
+    let acumulado = 0;
+    const linhas = [];
+
+    periodo.forEach(({ano, mes}) => {
+      const fDataBase = fatorDataBase(ano, mes);
+      const fBienioPosterior = bienioCalc.percentualAcumulado(ano, mes);
+      const fElev = elevCalc.fator(ano, mes);
+
+      // salário base do mês = base maio/2023 corrigido por: nível inicial (biênios pré-existentes)
+      // x reajustes de data-base x biênios novos x elevação horizontal
+      const salarioMes = salarioBase0 * fatorNivel0 * fDataBase * fBienioPosterior * fElev;
+
+      // gratificação efetivamente paga: acompanha SOMENTE reajustes de data-base
+      const gratPaga = gratBase0 * fDataBase;
+
+      // gratificação correta = 40% do salário base atualizado
+      const gratCorreta = salarioMes * 0.40;
+
+      const diferenca = gratCorreta - gratPaga;
+      acumulado += diferenca;
+
+      // eventos/marcadores do mês
+      const marcadores = [];
+      if(ano === 2024 && mes === 4) marcadores.push('Reajuste +3,5%');
+      if(ano === 2025 && mes === 4) marcadores.push('Reajuste +2,5%');
+      if(ano === 2025 && mes === 9) marcadores.push('Reajuste +2,5%');
+      bienioCalc.eventos.forEach(ev => { if(ev.ano===ano && ev.mes===mes) marcadores.push(ev.label); });
+      if(elevCalc.evento && elevCalc.evento.ano===ano && elevCalc.evento.mes===mes) marcadores.push(elevCalc.evento.label);
+
+      linhas.push({
+        ano, mes,
+        evento: marcadores.join(' · '),
+        salarioMes,
+        percBienio: fBienioPosterior,
+        percElev: fElev,
+        gratPaga,
+        gratCorreta,
+        diferenca,
+        acumulado,
+        marcado: marcadores.length > 0
+      });
+    });
+
+    renderizarResultados(linhas);
+  }
+
+  function renderizarResultados(linhas){
+    const corpo = document.getElementById('corpoTabela');
+    corpo.innerHTML = '';
+
+    linhas.forEach(l => {
+      const tr = document.createElement('tr');
+      if(l.marcado) tr.classList.add('marker-row');
+
+      const diffClass = l.diferenca > 0.005 ? 'diff-positive' : 'diff-zero';
+
+      tr.innerHTML = `
+        <td>${nomeMes(l.ano, l.mes)}</td>
+        <td>${l.evento || '—'}</td>
+        <td>${fmtMoeda(l.salarioMes)}</td>
+        <td>${fmtPct(l.percBienio - 1)}</td>
+        <td>${fmtPct(l.percElev - 1)}</td>
+        <td>${fmtMoeda(l.gratPaga)}</td>
+        <td>${fmtMoeda(l.gratCorreta)}</td>
+        <td class="${diffClass}">${fmtMoeda(l.diferenca)}</td>
+        <td>${fmtMoeda(l.acumulado)}</td>
+      `;
+      corpo.appendChild(tr);
+    });
+
+    const ultima = linhas[linhas.length - 1];
+    document.getElementById('sumSalarioFinal').textContent = fmtMoeda(ultima.salarioMes);
+    document.getElementById('sumGratPaga').textContent = fmtMoeda(ultima.gratPaga);
+    document.getElementById('sumGratCorreta').textContent = fmtMoeda(ultima.gratCorreta);
+    document.getElementById('sumTotal').textContent = fmtMoeda(ultima.acumulado);
+    document.getElementById('totalFoot').textContent = fmtMoeda(ultima.acumulado);
+
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});
+
+    window.__linhasCalculadas = linhas;
+  }
+
+  // ---------- Exportação Excel ----------
+  function exportarExcel(){
+    const linhas = window.__linhasCalculadas;
+    if(!linhas) return;
+
+    const dados = linhas.map(l => ({
+      'Mês/Ano': nomeMes(l.ano, l.mes),
+      'Evento': l.evento || '',
+      'Salário base': Number(l.salarioMes.toFixed(2)),
+      '% Biênio acumulado': Number(((l.percBienio-1)*100).toFixed(2)),
+      '% Elevação acumulada': Number(((l.percElev-1)*100).toFixed(2)),
+      'Gratificação paga': Number(l.gratPaga.toFixed(2)),
+      'Gratificação correta (40%)': Number(l.gratCorreta.toFixed(2)),
+      'Diferença': Number(l.diferenca.toFixed(2)),
+      'Acumulado': Number(l.acumulado.toFixed(2))
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dados);
+    ws['!cols'] = [
+      {wch:10},{wch:28},{wch:14},{wch:16},{wch:16},{wch:16},{wch:18},{wch:14},{wch:14}
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Retroativo');
+    XLSX.writeFile(wb, 'retroativo_gratificacao.xlsx');
+  }
+
+  // ---------- Eventos ----------
+  document.getElementById('btnCalcular').addEventListener('click', calcular);
+  document.getElementById('btnExcel').addEventListener('click', exportarExcel);
+  document.getElementById('btnPdf').addEventListener('click', () => window.print());
+  document.getElementById('btnLimpar').addEventListener('click', () => {
+    document.getElementById('salarioBase').value = '';
+    document.getElementById('dataAdmissao').value = '';
+    document.getElementById('congSim').checked = true;
+    document.getElementById('nivelMaio2023').value = '1';
+    document.getElementById('elevacao').value = 'nao';
+    document.getElementById('gratificacaoMaio2023').value = '582,46';
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('errorMsg').style.display = 'none';
+  });
+
+})();
+</script>
+
+</body>
+</html>
