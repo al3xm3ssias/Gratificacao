@@ -1000,6 +1000,7 @@ function calcular() {
   const dataAdmStr         = document.getElementById('data-admissao').value;
   const nivelInicial       = parseInt(document.getElementById('nivel-inicial').value);
   const progressaoH        = document.getElementById('progressao-horizontal').value;
+  const bienios            = document.getElementById('bienios-congelados').value;
 
   const errEl  = document.getElementById('error-msg');
   const warnEl = document.getElementById('warn-msg');
@@ -1016,6 +1017,13 @@ function calcular() {
   }
 
   const dataAdm = new Date(dataAdmStr + 'T00:00:00');
+
+  const LIMITE_RETROATIVO = new Date(2023, 3, 30); // 30/04/2023
+  if (dataAdm > LIMITE_RETROATIVO) {
+    errEl.innerHTML = `⚠️ <strong>O(a) escriturário(a) não está apto(a) a receber o retroativo.</strong> A data de admissão informada (${dataAdm.toLocaleDateString('pt-BR')}) é posterior a 30/04/2023, data-limite considerada para este retroativo. Não é possível calcular valores retroativos para servidores admitidos após essa data.`;
+    errEl.style.display = 'block';
+    return;
+  }
 
   let progHDate = null;
   let progHIgnorada = false;
@@ -1046,17 +1054,55 @@ function calcular() {
     return f;
   }
 
-  function getNumBienios(year, month) {
-    let count = 0;
+  // ─────────────────────────────────────────────────────
+  // Regra do congelamento de biênio (28/05/2020 – 31/12/2021)
+  // Servidores com biênios congelados que tiveram o aniversário
+  // do biênio dentro dessa janela ficaram com o pagamento atrasado.
+  // Quem entrou em ano ÍMPAR passou a receber em ano PAR, e
+  // quem entrou em ano PAR passou a receber em ano ÍMPAR.
+  // Essa inversão de paridade, uma vez iniciada, vale também para
+  // todos os biênios subsequentes (o atraso se propaga).
+  // ─────────────────────────────────────────────────────
+  const CONGEL_INICIO = new Date(2020, 4, 28); // 28/05/2020
+  const CONGEL_FIM     = new Date(2021, 11, 31); // 31/12/2021
+
+  const listaBienios = (() => {
+    const lista = [];
+    let invertendoDesde = null;
     for (let b = 1; b <= 20; b++) {
       const aniv = new Date(dataAdm);
       aniv.setFullYear(dataAdm.getFullYear() + b * 2);
-      const pagAno  = aniv.getMonth() === 11 ? aniv.getFullYear() + 1 : aniv.getFullYear();
-      const pagMes  = (aniv.getMonth() + 1) % 12;
-      if (pagAno < year || (pagAno === year && pagMes <= month)) count++;
+
+      // pagamento ocorre no mês seguinte ao aniversário (regra original)
+      let pagAno = aniv.getMonth() === 11 ? aniv.getFullYear() + 1 : aniv.getFullYear();
+      const pagMes = (aniv.getMonth() + 1) % 12;
+
+      let congelado = false;
+      if (bienios === 'sim') {
+        if (aniv >= CONGEL_INICIO && aniv <= CONGEL_FIM) {
+          congelado = true;
+          if (invertendoDesde === null) invertendoDesde = b;
+        }
+        if (invertendoDesde !== null && b >= invertendoDesde) {
+          pagAno += 1; // inverte a paridade do ano de pagamento (par<->ímpar) e mantém invertido
+        }
+      }
+      lista.push({ num: b, aniversario: aniv, pagAno, pagMes, congelado });
+    }
+    return lista;
+  })();
+
+  function getNumBienios(year, month) {
+    let count = 0;
+    for (const info of listaBienios) {
+      if (info.pagAno < year || (info.pagAno === year && info.pagMes <= month)) count++;
       else break;
     }
     return count;
+  }
+
+  function getNivelAtual(year, month) {
+    return Math.min(12, nivelInicial + getNumBienios(year, month));
   }
 
   const BASE_A1_2023 = 1800.00;
@@ -1084,6 +1130,7 @@ function calcular() {
     const fatorReaj   = getFatorReajuste(year, month);
     const numBienios  = getNumBienios(year, month);
     const fatorBienio = Math.pow(1.03, numBienios);
+    const nivelAtual  = getNivelAtual(year, month);
 
     let fatorProgH = 1.0;
     if (progHDate && (year > progHDate.year || (year === progHDate.year && month >= progHDate.month))) {
@@ -1102,7 +1149,7 @@ function calcular() {
       if (progHDate && (year > progHDate.year || (year === progHDate.year && month >= progHDate.month))) {
         fatorProgH2026 = 1.05;
       }
-      const fatorBienio2026 = Math.pow(1.03, getNumBienios(year, month));
+      const fatorBienio2026 = fatorBienio;
       salarioBase = salNivel2026 * fatorBienio2026 * fatorProgH2026;
     }
 
@@ -1120,7 +1167,7 @@ function calcular() {
     rows.push({
       label: labelMes(year, month),
       year, month, salarioBase,
-      nivel: nivelInicial, letra,
+      nivel: nivelAtual, letra,
       percBienio: (fatorBienio - 1) * 100,
       percProgH: (fatorProgH - 1) * 100,
       gratPaga, gratCorreta, diferenca, acumulado,
