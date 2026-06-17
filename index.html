@@ -685,7 +685,7 @@ tfoot td:first-child { text-align: left; font-family: 'Inter', sans-serif; }
 
             <div class="form-group">
               <label>Nível em maio/2023
-                <span class="label-hint">Posição na tabela salarial (A1 = R$ 1.800,00)</span>
+                <span class="label-hint">Já com os biênios incluídos (A1 = R$ 1.800,00 sem nenhum biênio)</span>
               </label>
               <select id="nivel-inicial">
                 <option value="1">A1</option>
@@ -1101,8 +1101,22 @@ function calcular() {
     return count;
   }
 
+  // ─────────────────────────────────────────────────────
+  // O "Nível em maio/2023" informado pelo usuário JÁ inclui
+  // todos os biênios concedidos até aquela data. Por isso, para
+  // não contar esses biênios em dobro (uma vez no nível, outra
+  // no fator de 3%), só os biênios que vencem A PARTIR de
+  // maio/2023 devem gerar progressão de nível/salário adicional.
+  // ─────────────────────────────────────────────────────
+  const REF_ANO = 2023, REF_MES = 4; // maio/2023 (mês 4 = índice zero-based)
+  const numBieniosAteRef = getNumBienios(REF_ANO, REF_MES);
+
+  function getNumBieniosNovos(year, month) {
+    return Math.max(0, getNumBienios(year, month) - numBieniosAteRef);
+  }
+
   function getNivelAtual(year, month) {
-    return Math.min(12, nivelInicial + getNumBienios(year, month));
+    return Math.min(12, nivelInicial + getNumBieniosNovos(year, month));
   }
 
   const BASE_A1_2023 = 1800.00;
@@ -1127,10 +1141,10 @@ function calcular() {
   const gratCorretaDez = {}, gratPagaDez = {};
 
   for (const { year, month } of meses) {
-    const fatorReaj   = getFatorReajuste(year, month);
-    const numBienios  = getNumBienios(year, month);
-    const fatorBienio = Math.pow(1.03, numBienios);
-    const nivelAtual  = getNivelAtual(year, month);
+    const fatorReaj      = getFatorReajuste(year, month);
+    const numBieniosNovos = getNumBieniosNovos(year, month);
+    const fatorBienio    = Math.pow(1.03, numBieniosNovos);
+    const nivelAtual     = getNivelAtual(year, month);
 
     let fatorProgH = 1.0;
     if (progHDate && (year > progHDate.year || (year === progHDate.year && month >= progHDate.month))) {
